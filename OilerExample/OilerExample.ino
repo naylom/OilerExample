@@ -48,7 +48,6 @@ void setup ()
 	Serial.begin ( 19200 );
 	while ( !Serial );
 	ClearScreen ();
-	AT (1,30, F ( "Example sketch using oiler" ) );
 
 	// Add motors to Oiler - see Configuration.h
 #ifdef USING_STEPPER_MOTORS
@@ -192,9 +191,36 @@ void loop ()
 #define MAX_COLS			80
 #define MAX_ROWS			25
 
+// defines for ansi terminal sequences
+#define CSI				F("\x1b[")
+#define SAVE_CURSOR		F("\x1b[s")
+#define RESTORE_CURSOR	F("\x1b[u")
+#define CLEAR_LINE		F("\x1b [2K")
+#define RESET_COLOURS   F("\x1b[0m")
+
+// colors
+#define FG_BLACK		30
+#define FG_RED			31
+#define FG_GREEN		32
+#define FG_YELLOW		33
+#define FG_BLUE			34
+#define FG_MAGENTA		35
+#define FG_CYAN			36
+#define FG_WHITE		37
+
+#define BG_BLACK		40
+#define BG_RED			41
+#define BG_GREEN		42
+#define BG_YELLOW		43
+#define BG_BLUE			44
+#define BG_MAGENTA		45
+#define BG_CYAN			46
+#define BG_WHITE		47
+
 // following are routines to output ANSI style terminal emulation
 void DisplayMenu ()
 {
+	COLOUR_AT ( FG_GREEN, BG_BLACK, 1, 30, F ( "Oiler Example Sketch" ) );
 	AT ( 5, 10, F( "1 - Turn Oiler On" ) );
 	AT ( 6, 10, F ( "2 - Turn Oiler 0ff" ) );
 	AT ( 7, 10, F ( "3 - Motors Forward" ) );
@@ -269,8 +295,17 @@ void AT ( uint8_t row, uint8_t col, String s )
 {
 	row = row == 0 ? 1 : row;
 	col = col == 0 ? 1 : col;
-	String m = String ("\x1b[" ) + row + String ( ";") + col + String ("H") + s;
+	String m = String ( CSI ) + row + String ( ";") + col + String ("H") + s;
 	Serial.print ( m );
+}
+
+void COLOUR_AT ( uint8_t FGColour, uint8_t BGColour, uint8_t row, uint8_t col, String s ) 
+{
+	// set colours
+	Serial.print ( String ( CSI  ) + FGColour + ";" + BGColour + "m" );
+	AT ( row, col, s);
+	// reset colours
+	Serial.print ( RESET_COLOURS );
 }
 
 void ClearPartofLine ( uint8_t row, uint8_t start_col, uint8_t toclear )
@@ -295,18 +330,17 @@ void ClearPartofLine ( uint8_t row, uint8_t start_col, uint8_t toclear )
 void ClearLine ( uint8_t row )
 {
 	SaveCursor ();
-	String m = "\x1b[2K";
-	AT ( row, 1, m );
+	AT ( row, 1, String ( CLEAR_LINE )  );
 	RestoreCursor ();
 }
 void SaveCursor ( void )
 {
-	Serial.print ( "\x1b[s" );
+	Serial.print ( SAVE_CURSOR );
 }
 
 void RestoreCursor ( void )
 {
-	Serial.print ( "\x1b[u" );
+	Serial.print ( RESTORE_CURSOR );
 }
 
 void Error ( String s )
@@ -314,7 +348,7 @@ void Error ( String s )
 	// Clear error line
 	ClearLine ( ERROR_ROW );
 	// Output new error
-	AT ( ERROR_ROW, ERROR_COL, s );
+	COLOUR_AT ( FG_RED, BG_BLACK, ERROR_ROW, ERROR_COL, s );
 }
 
 void DisplayOilerStatus ( String s )
