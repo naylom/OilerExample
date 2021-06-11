@@ -19,27 +19,30 @@ void Motor2WorkSignal ( void )
 
 void OilerTmerCallback ( void )
 {
-
-	// Invoked once per second to check if oiler needs starting
-	switch ( TheOiler.GetMode() )
+	if ( TheOiler.GetStatus () != OilerClass::OFF )
 	{
-		case OilerClass::ON_TIME: 
-			TheOiler.CheckElapsedTime ();
-			break;
+		// Invoked once per second to check if oiler needs starting
+		switch ( TheOiler.GetStartMode () )
+		{
+			case OilerClass::ON_TIME:
+				TheOiler.CheckElapsedTime ();
+				break;
 
-		case OilerClass::ON_POWERED_TIME:
-		case OilerClass::ON_TARGET_ACTIVITY:
-			TheOiler.CheckTargetReady ();
-			break;
+			case OilerClass::ON_POWERED_TIME:
+			case OilerClass::ON_TARGET_ACTIVITY:
+				TheOiler.CheckTargetReady ();
+				break;
 
-		default:
-			break;
+			default:
+				break;
+		}
 	}
 }
 OilerClass::OilerClass ( TargetMachineClass* pMachine )
 {
 	m_pMachine = pMachine;
 	m_OilerMode = ON_TIME;
+	m_OilerStatus = OFF;
 	m_ulOilTime = TIME_BETWEEN_OILING;
 	m_Motors.uiNumMotors = 0;
 }
@@ -62,6 +65,7 @@ bool OilerClass::On ()
 		}
 
 		TheTimer.AddCallBack ( OilerTmerCallback, RESOLUTION );		// callback once per sec
+		m_OilerStatus = OILING;
 		bResult = true;
 	}
 	return bResult;
@@ -73,7 +77,7 @@ void OilerClass::Off ()
 	{
 		m_Motors.Motor [ i ]->Off ();
 	}
-	m_OilerMode = NONE;
+	m_OilerStatus = OFF;
 	m_timeOilerStopped = millis ();
 }
 
@@ -135,13 +139,19 @@ void OilerClass::MotorWork ( uint8_t uiMotorIndex )
 			{
 				m_timeOilerStopped = millis ();
 			}
+			m_OilerStatus = IDLE;
 		}
 	}
 }
 
-OilerClass::eMode OilerClass::GetMode ( void )
+OilerClass::eStartMode OilerClass::GetStartMode ( void )
 {
 	return m_OilerMode;
+}
+
+OilerClass::eStatus OilerClass::GetStatus ( void )
+{
+	return m_OilerStatus;
 }
 
 void OilerClass::CheckTargetReady ( void )
@@ -158,7 +168,7 @@ uint32_t OilerClass::GetTimeOilerIdle ( void )
 	uint32_t	ulResult = 0UL;
 	
 	// if no oiler motors pumping
-	if ( AllMotorsStopped () || GetMode() != NONE )
+	if ( AllMotorsStopped () || GetStartMode() != NONE )
 	{
 		ulResult = ( millis () - m_timeOilerStopped ) / 1000;
 	}
@@ -208,7 +218,7 @@ bool OilerClass::AllMotorsStopped ( void )
 	return bResult;
 }
 
-bool OilerClass::SetMode ( eMode Mode, uint32_t ulModeTarget )
+bool OilerClass::SetStartMode ( eStartMode Mode, uint32_t ulModeTarget )
 {
 	bool bResult = false;
 	switch ( Mode )

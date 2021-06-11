@@ -94,9 +94,9 @@ void setup ()
 
 	// By default the oiler will work on an elapsed time basis, see Oiler.h, can also change here the signal level expected when oil is output
 	// Other options to below are :
-	// TheOiler.SetMode ( OilerClass::ON_TARGET_ACTIVITY, NUM_ACTION_EVENTS )		// using TheMachine
-	// TheOiler.SetMode ( OilerClass::ON_TIME, ELAPSED_TIME_SECS )					// Not using TheMachine, just oiling every n seconds
-	//if ( TheOiler.SetMode ( OilerClass::ON_POWERED_TIME, ELAPSED_TIME_SECS ) == false )
+	// TheOiler.SetStartMode ( OilerClass::ON_TARGET_ACTIVITY, NUM_ACTION_EVENTS )		// using TheMachine
+	// TheOiler.SetStartMode ( OilerClass::ON_TIME, ELAPSED_TIME_SECS )					// Not using TheMachine, just oiling every n seconds
+	//if ( TheOiler.SetStartMode ( OilerClass::ON_POWERED_TIME, ELAPSED_TIME_SECS ) == false )
 	//{
 	//	Error ( "Unable to set oiler operating mode, stopped" );
 	//	while ( 1 );
@@ -141,7 +141,7 @@ void loop ()
 				break;
 
 			case '5': // TIME_ONLY - basic mode -  oil every n secs regardless
-				if ( TheOiler.SetMode ( OilerClass::ON_TIME, 30 ) )
+				if ( TheOiler.SetStartMode ( OilerClass::ON_TIME, 30 ) )
 				{
 					DisplayOilerStatus ( F ( "Oiler in basic ON_TIME mode" ) );
 				}
@@ -152,7 +152,7 @@ void loop ()
 				break;
 
 			case '6': // POWERED_ON - adv mode - oile every n secs target machine is powered on
-				if ( TheOiler.SetMode ( OilerClass::ON_POWERED_TIME, 30 ) )
+				if ( TheOiler.SetStartMode ( OilerClass::ON_POWERED_TIME, 30 ) )
 				{
 					DisplayOilerStatus ( F ( "Oiler in advanced ON_POWERED_TIME mode" ) );
 				}
@@ -163,7 +163,7 @@ void loop ()
 				break;
 
 			case '7': // WORK_UNITS - adv mode - oil every n units done bt target machine, eg every n spindle revs
-				if ( TheOiler.SetMode ( OilerClass::ON_TARGET_ACTIVITY, 3 ) )
+				if ( TheOiler.SetStartMode ( OilerClass::ON_TARGET_ACTIVITY, 3 ) )
 				{
 					DisplayOilerStatus ( F ( "Oiler in advanced ON_TARGET_ACTIVITY mode" ) );
 				}
@@ -186,8 +186,10 @@ void loop ()
 #define ERROR_COL			1
 #define STATUS_LINE			24
 #define STATUS_START_COL	40
-#define STATS_ROW			14
+#define STATS_ROW			8
 #define STATS_RESULT_COL	70
+#define MODE_ROW			20
+#define MODE_RESULT_COL		45
 #define MAX_COLS			80
 #define MAX_ROWS			25
 
@@ -228,23 +230,39 @@ void DisplayMenu ()
 	AT ( 9, 10, F ( "5 - TIME_ONLY Mode" ) );
 	AT ( 10, 10, F ( "6 - POWERED_ON Time" ) );
 	AT ( 11, 10, F ( "7 - Machine WORK UNITS" ) );
-	AT ( STATS_ROW -1 , STATS_RESULT_COL - 14, F ( "STATS" ) );
-	AT ( STATS_ROW, STATS_RESULT_COL - 14, F ( "Oiler Idle    N/A" ) );
+	AT ( STATS_ROW - 1 , STATS_RESULT_COL - 14, F ( "STATS" ) );
+	AT ( STATS_ROW + 0, STATS_RESULT_COL - 14, F ( "Oiler Idle    N/A" ) );
 	AT ( STATS_ROW + 1, STATS_RESULT_COL - 14, F ( "Motor1 Units  N/A") );
 	AT ( STATS_ROW + 2, STATS_RESULT_COL - 14, F ( "Motor1 State  N/A" ) );
 	AT ( STATS_ROW + 3, STATS_RESULT_COL - 14, F ( "Motor2 Units  N/A" ) );
 	AT ( STATS_ROW + 4, STATS_RESULT_COL - 14, F ( "Motor2 State  N/A" ) );
 	AT ( STATS_ROW + 5, STATS_RESULT_COL - 14, F ( "Machine Units N/A" ) );	
-	AT ( STATS_ROW + 6, STATS_RESULT_COL - 14, F ( "Machine Idle  N/A" ) );
+	AT ( STATS_ROW + 6, STATS_RESULT_COL - 14, F ( "Machine Time  N/A" ) );
+	AT ( MODE_ROW + 0, MODE_RESULT_COL - 14, F ( "Oiler Mode    None" ) );
+	AT ( MODE_ROW + 1, MODE_RESULT_COL - 14, F ( "Oiler Status  OFF" ) );
 }
-
+const char* Modes [] =
+{
+	"ON TIME",
+	"ON POWERED TIME",
+	"ON TARGET ACTIVITY",
+	"NONE"
+};
+const char* Statuses [] =
+{
+	"Oiling",
+	"Off",
+	"Idle"
+};
 void DisplayStats ( void )
 {
-	static uint8_t uiLastCount [ NUM_MOTORS ];
-	static MotorClass::eState  uiLastState [ NUM_MOTORS ];
-	static uint32_t ulLastIdleSecs = 0UL;
-	static uint32_t ulLastMachineUnits = 0;
-	static uint32_t ulLastMachineIdleSecs = 0;
+	static uint8_t						uiLastCount [ NUM_MOTORS ];
+	static MotorClass::eState			uiLastState [ NUM_MOTORS ];
+	static uint32_t						ulLastIdleSecs			= 0UL;
+	static uint32_t						ulLastMachineUnits		= 0;
+	static uint32_t						ulLastMachineIdleSecs	= 0;
+	static OilerClass::eStartMode		OilerMode				= OilerClass::NONE;
+	static OilerClass::eStatus			OilerStatus				= OilerClass::OFF;
 
 	uint32_t ulIdleSecs = TheOiler.GetTimeOilerIdle ();
 	if ( ulIdleSecs != ulLastIdleSecs && TheOiler.AllMotorsStopped() )
@@ -270,6 +288,7 @@ void DisplayStats ( void )
 			AT ( STATS_ROW + i * 2 + 2, STATS_RESULT_COL, eResult == MotorClass::STOPPED ? F ( "Stopped" ) : F ( "Running" ) );
 		}
 	}
+	// Update machine info if necessary
 	uint32_t ulMachineUnits = TheMachine.GetWorkUnits ();
 	if ( ulMachineUnits != ulLastMachineUnits )
 	{
@@ -283,6 +302,21 @@ void DisplayStats ( void )
 		ulLastMachineIdleSecs = ulMachineIdleSecs;
 		ClearPartofLine ( STATS_ROW + 6, STATS_RESULT_COL, MAX_COLS - STATS_RESULT_COL );
 		AT ( STATS_ROW + 6, STATS_RESULT_COL, String ( ulMachineIdleSecs ) );
+	}
+	// Update mode and status if necessary
+	OilerClass::eStartMode Mode = TheOiler.GetStartMode ();
+	if ( OilerMode != Mode  )
+	{
+		OilerMode = Mode;
+		ClearPartofLine ( MODE_ROW + 0, MODE_RESULT_COL, MAX_COLS - MODE_RESULT_COL );
+		AT ( MODE_ROW + 0, MODE_RESULT_COL, Modes [ Mode ] );
+	}
+	OilerClass::eStatus Status = TheOiler.GetStatus ();
+	if ( OilerStatus != Status )
+	{
+		OilerStatus = Status;
+		ClearPartofLine ( MODE_ROW + 1, MODE_RESULT_COL, MAX_COLS - MODE_RESULT_COL );
+		AT ( MODE_ROW + 1, MODE_RESULT_COL, Statuses [ Status ] );
 	}
 }
 
