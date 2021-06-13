@@ -222,7 +222,9 @@ void loop ()
 // following are routines to output ANSI style terminal emulation
 void DisplayMenu ()
 {
-	COLOUR_AT ( FG_GREEN, BG_BLACK, 1, 30, F ( "Oiler Example Sketch" ) );
+	String Heading = F ( "Oiler Example Sketch, Version " );
+	Heading += String ( OILER_VERSION ); 
+	COLOUR_AT ( FG_GREEN, BG_BLACK, 1, 30, Heading );
 	AT ( 5, 10, F( "1 - Turn Oiler On" ) );
 	AT ( 6, 10, F ( "2 - Turn Oiler 0ff" ) );
 	AT ( 7, 10, F ( "3 - Motors Forward" ) );

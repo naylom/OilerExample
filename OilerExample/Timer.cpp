@@ -6,7 +6,7 @@
 // 
 
 #include "Timer.h"
-extern volatile uint32_t ulOilerCallbackInvoked;
+
 TimerClass::TimerClass ( void )
 {
 	m_uiCallbackCount = 0;

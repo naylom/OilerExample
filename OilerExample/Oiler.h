@@ -24,6 +24,8 @@
 #include "FourPinStepperMotor.h"
 #include "TargetMachine.h"
 
+#define OILER_VERSION 0.2
+
 #define		MAX_MOTORS					2					// MAX the oiler can support
 #define		MOTOR_WORK_SIGNAL_MODE		HIGH				// LEVEL of signal when motor output (eg oil seen) is signalled
 #define		MOTOR_WORK_SIGNAL_PINMODE	INPUT_PULLUP

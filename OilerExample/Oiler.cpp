@@ -102,7 +102,7 @@ bool OilerClass::AddMotor ( uint8_t uiPin, uint8_t uiWorkPin )
 	if ( m_Motors.uiNumMotors < MAX_MOTORS && digitalPinToInterrupt ( uiWorkPin ) != NOT_AN_INTERRUPT )
 	{
 		// space to add another motor
-		m_Motors.Motor [ m_Motors.uiNumMotors ] = (MotorClass *)new RelayMotorClass  ( uiPin );
+		m_Motors.Motor [ m_Motors.uiNumMotors++ ] = (MotorClass *)new RelayMotorClass  ( uiPin );
 		pinMode ( uiWorkPin, MOTOR_WORK_SIGNAL_PINMODE );
 		attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), Motor1WorkSignal, MOTOR_WORK_SIGNAL_MODE );
 		bResult = true;

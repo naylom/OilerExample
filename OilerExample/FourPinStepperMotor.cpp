@@ -8,7 +8,7 @@
 
 #include "FourPinStepperMotor.h"
 #include "Timer.h"
-extern volatile uint32_t ulOilerCallbackInvoked;
+
 
 uint8_t  PhaseSigs [ NUM_PHASES ][ NUM_PINS ] =
 {
