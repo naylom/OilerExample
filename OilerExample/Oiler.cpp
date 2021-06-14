@@ -64,6 +64,8 @@ OilerClass::OilerClass ( TargetMachineClass* pMachine )
 	m_OilerStatus = OFF;
 	m_ulOilTime = TIME_BETWEEN_OILING;
 	m_Motors.uiNumMotors = 0;
+	m_uiAlertPin = NOT_A_PIN;
+	m_ulAlertMultiple = 0UL;
 }
 
 bool OilerClass::On ()
@@ -139,6 +141,21 @@ void	OilerClass::AddMachine ( TargetMachineClass* pMachine )
 	m_pMachine = pMachine;
 }
 
+bool	OilerClass::SetAlert ( uint8_t uiAlertPin, uint32_t ulAlertMultiple )
+{
+	bool bResult = false;
+
+	if ( uiAlertPin != NOT_A_PIN )
+	{
+		m_uiAlertPin = uiAlertPin;
+		pinMode ( m_uiAlertPin, OUTPUT );
+		ClearError ();
+		m_ulAlertMultiple = ulAlertMultiple;
+	}
+
+	return bResult;
+}
+
 void OilerClass::MotorWork ( uint8_t uiMotorIndex )
 {
 	// One of Oiler motors has completed work
@@ -152,6 +169,7 @@ void OilerClass::MotorWork ( uint8_t uiMotorIndex )
 		// have we stopped all motors
 		if ( AllMotorsStopped() )
 		{	
+			ClearError ();
 			// restart monitoring, if we have a machine
 			if ( m_pMachine != NULL && m_OilerMode != ON_TIME )
 			{
@@ -180,19 +198,43 @@ OilerClass::eStatus OilerClass::GetStatus ( void )
 
 void OilerClass::CheckTargetReady ( void )
 {
+	static uint32_t ulOilingFailed = 0;
+
 	switch  ( m_OilerMode )
 	{
 		case ON_TARGET_ACTIVITY:
 			if ( m_pMachine->MachineUnitsDone() )
 			{
+				if ( m_OilerStatus == OILING )
+				{
+					// Still Oiling and machine is ready for more oil - one or more motors isn't outputting in time
+					ulOilingFailed++;
+					CheckError ( ulOilingFailed, 1 );
+				}
+				else
+				{
+					ulOilingFailed = 0;
+				}
 				On ();
+				m_pMachine->RestartMonitoring ();
 			}
 			break;
 
 		case ON_POWERED_TIME:
 			if ( m_pMachine->MachinePoweredTimeExpired () )
 			{
+				if ( m_OilerStatus == OILING )
+				{
+					// Still Oiling and machine is ready for more oil - one or more motors isn't outputting in time
+					ulOilingFailed++;
+					CheckError ( ulOilingFailed, 1 );
+				}
+				else
+				{
+					ulOilingFailed = 0;
+				}
 				On ();
+				m_pMachine->RestartMonitoring ();
 			}
 			break;
 
@@ -207,9 +249,19 @@ uint32_t OilerClass::GetTimeOilerIdle ( void )
 	uint32_t	ulResult = 0UL;
 	
 	// if no oiler motors pumping
-	if ( AllMotorsStopped () )
+	if ( AllMotorsStopped () && GetStatus() != OFF )
 	{
 		ulResult = ( millis () - m_timeOilerStopped ) / 1000;
+	}
+	return ulResult;
+}
+
+uint32_t OilerClass::GetTimeSinceMotorStarted ( uint8_t uiMotorIndex )
+{
+	uint32_t ulResult = 0;
+	if ( uiMotorIndex < m_Motors.uiNumMotors )
+	{
+		ulResult = m_Motors.MotorInfo [ uiMotorIndex ].Motor->GetTimeMotorRunning ();
 	}
 	return ulResult;
 }
@@ -218,22 +270,53 @@ uint32_t OilerClass::GetTimeOilerIdle ( void )
 void OilerClass::CheckElapsedTime ()
 {
 	// check if motor should be restarted
-	if ( m_Motors.uiNumMotors > 0 )
+	if ( GetStatus () != OFF )
 	{
-		uint32_t tNow = millis ();
-		for ( uint8_t i = 0; i < m_Motors.uiNumMotors; i++ )
+		if ( m_Motors.uiNumMotors > 0 )
 		{
-			// check if motor not running
-			if ( m_Motors.MotorInfo [ i ].Motor->GetMotorState () == MotorClass::STOPPED )
+			uint32_t tNow = millis ();
+			for ( uint8_t i = 0; i < m_Motors.uiNumMotors; i++ )
 			{
-				// check elapsed time
-				if ( ( tNow - m_Motors.MotorInfo [ i ].Motor->GetTimeMotorStopped () ) / 1000 > m_ulOilTime )
+				// check if motor not running
+				if ( m_Motors.MotorInfo [ i ].Motor->GetMotorState () == MotorClass::STOPPED )
 				{
-					m_Motors.MotorInfo [ i ].Motor->On ();
-					m_Motors.MotorInfo [ i ].uiWorkCount = 0;
+					// check elapsed time
+					if ( ( tNow - m_Motors.MotorInfo [ i ].Motor->GetTimeMotorStopped () ) / 1000 > m_ulOilTime )
+					{
+						m_Motors.MotorInfo [ i ].Motor->On ();
+						m_Motors.MotorInfo [ i ].uiWorkCount = 0;
+					}
+				}
+				else
+				{
+					// Check motor not running beyond expected time
+					CheckError ( m_Motors.MotorInfo [ i ].Motor->GetTimeMotorRunning (), m_ulOilTime );
 				}
 			}
 		}
+	}
+}
+
+void	OilerClass::CheckError ( uint32_t ulActual, uint32_t ulTarget )
+{
+	if ( m_ulAlertMultiple > 0 )
+	{
+		if ( ulActual >= ulTarget * m_ulAlertMultiple )
+		{
+			// Serial.print ( "Actual " ); Serial.print ( ulActual ); Serial.print ( " Target " ); Serial.println ( ulTarget );
+			if ( m_uiAlertPin != NOT_A_PIN )
+			{
+				digitalWrite ( m_uiAlertPin, ALERT_PIN_ERROR_STATE );
+			}
+		}
+	}
+}
+
+void	OilerClass::ClearError ( void )
+{
+	if ( m_uiAlertPin != NOT_A_PIN )
+	{
+		digitalWrite ( m_uiAlertPin, ALERT_PIN_ERROR_STATE == HIGH? LOW : HIGH );
 	}
 }
 

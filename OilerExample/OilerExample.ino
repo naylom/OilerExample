@@ -94,6 +94,13 @@ void setup ()
 	// Since we have one, we optionally tell TheOiler it exists as follows:
 	TheOiler.AddMachine ( &TheMachine );
 
+	// Demonstrate how to turn on functionalty that will generate a signal if oiling takes too long
+	if ( TheOiler.SetAlert ( ALERT_PIN, ALERT_THRESHOLD ) )
+	{
+		Error ( F ( "Unable to add Alert feature to oiler, stopped" ) );
+		while ( 1 );
+	}
+
 	// By default the oiler will work on an elapsed time basis, see Oiler.h, can also change here the signal level expected when oil is output
 	// Other options to below are :
 	// TheOiler.SetStartMode ( OilerClass::ON_TARGET_ACTIVITY, NUM_ACTION_EVENTS )		// using TheMachine
@@ -238,10 +245,12 @@ void DisplayMenu ()
 	AT ( STATS_ROW + 0, STATS_RESULT_COL - 14, F ( "Oiler Idle    N/A" ) );
 	AT ( STATS_ROW + 1, STATS_RESULT_COL - 14, F ( "Motor1 Units  N/A") );
 	AT ( STATS_ROW + 2, STATS_RESULT_COL - 14, F ( "Motor1 State  N/A" ) );
-	AT ( STATS_ROW + 3, STATS_RESULT_COL - 14, F ( "Motor2 Units  N/A" ) );
-	AT ( STATS_ROW + 4, STATS_RESULT_COL - 14, F ( "Motor2 State  N/A" ) );
-	AT ( STATS_ROW + 5, STATS_RESULT_COL - 14, F ( "Machine Units N/A" ) );	
-	AT ( STATS_ROW + 6, STATS_RESULT_COL - 14, F ( "Machine Time  N/A" ) );
+	AT ( STATS_ROW + 3, STATS_RESULT_COL - 14, F ( "Motor1 Act(s) N/A" ) );
+	AT ( STATS_ROW + 4, STATS_RESULT_COL - 14, F ( "Motor2 Units  N/A" ) );
+	AT ( STATS_ROW + 5, STATS_RESULT_COL - 14, F ( "Motor2 State  N/A" ) );
+	AT ( STATS_ROW + 6, STATS_RESULT_COL - 14, F ( "Motor2 Act(s) N/A" ) );
+	AT ( STATS_ROW + 7, STATS_RESULT_COL - 14, F ( "Machine Units N/A" ) );	
+	AT ( STATS_ROW + 8, STATS_RESULT_COL - 14, F ( "Machine Time  N/A" ) );
 	AT ( MODE_ROW + 0, MODE_RESULT_COL - 14, F ( "Oiler Mode    None" ) );
 	AT ( MODE_ROW + 1, MODE_RESULT_COL - 14, F ( "Oiler Status  OFF" ) );
 }
@@ -262,6 +271,7 @@ void DisplayStats ( void )
 {
 	static uint8_t						uiLastCount [ NUM_MOTORS ];
 	static MotorClass::eState			uiLastState [ NUM_MOTORS ];
+	static uint32_t						ulLastMotorRunTime [ NUM_MOTORS ];
 	static uint32_t						ulLastIdleSecs			= 0UL;
 	static uint32_t						ulLastMachineUnits		= 0UL;
 	static uint32_t						ulLastMachineIdleSecs	= 0UL;
@@ -291,21 +301,28 @@ void DisplayStats ( void )
 			ClearPartofLine ( STATS_ROW + i * 2 + 2, STATS_RESULT_COL, MAX_COLS - STATS_RESULT_COL );
 			AT ( STATS_ROW + i * 2 + 2, STATS_RESULT_COL, eResult == MotorClass::STOPPED ? F ( "Stopped" ) : F ( "Running" ) );
 		}
+		uint32_t ulResult = TheOiler.GetTimeSinceMotorStarted( i );
+		if ( ulResult != ulLastMotorRunTime [ i ] )
+		{
+			ulLastMotorRunTime [ i ] = ulResult;
+			ClearPartofLine ( STATS_ROW + i * 2 + 3, STATS_RESULT_COL, MAX_COLS - STATS_RESULT_COL );
+			AT ( STATS_ROW + i * 2 + 3, STATS_RESULT_COL, String ( ulResult ) );
+		}
 	}
 	// Update machine info if necessary
 	uint32_t ulMachineUnits = TheMachine.GetWorkUnits ();
 	if ( ulMachineUnits != ulLastMachineUnits )
 	{
 		ulLastMachineUnits = ulMachineUnits;
-		ClearPartofLine ( STATS_ROW + 5, STATS_RESULT_COL, MAX_COLS - STATS_RESULT_COL );
-		AT ( STATS_ROW + 5, STATS_RESULT_COL, String ( ulMachineUnits ) );
+		ClearPartofLine ( STATS_ROW + 7, STATS_RESULT_COL, MAX_COLS - STATS_RESULT_COL );
+		AT ( STATS_ROW + 7, STATS_RESULT_COL, String ( ulMachineUnits ) );
 	}
 	uint32_t ulMachineIdleSecs = TheMachine.GetActiveTime();
 	if ( ulMachineIdleSecs != ulLastMachineIdleSecs )
 	{
 		ulLastMachineIdleSecs = ulMachineIdleSecs;
-		ClearPartofLine ( STATS_ROW + 6, STATS_RESULT_COL, MAX_COLS - STATS_RESULT_COL );
-		AT ( STATS_ROW + 6, STATS_RESULT_COL, String ( ulMachineIdleSecs ) );
+		ClearPartofLine ( STATS_ROW + 8, STATS_RESULT_COL, MAX_COLS - STATS_RESULT_COL );
+		AT ( STATS_ROW + 8, STATS_RESULT_COL, String ( ulMachineIdleSecs ) );
 	}
 	// Update mode and status if necessary
 	OilerClass::eStartMode Mode = TheOiler.GetStartMode ();

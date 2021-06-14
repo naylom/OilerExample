@@ -29,7 +29,17 @@ bool MotorClass::Off ( void )
 
 uint32_t MotorClass::GetTimeMotorStarted ( void )
 {
-	return 	m_ulTimeStartedms = 0;
+	return 	m_ulTimeStartedms;
+}
+
+uint32_t MotorClass::GetTimeMotorRunning ( void )
+{
+	uint32_t ulResult = 0UL;
+	if ( m_eState == RUNNING )
+	{
+		ulResult = ( millis () - m_ulTimeStartedms ) / 1000UL;
+	}
+	return ulResult;
 }
 
 uint32_t MotorClass::GetTimeMotorStopped ( void )
