@@ -179,9 +179,24 @@ OilerClass::eStatus OilerClass::GetStatus ( void )
 
 void OilerClass::CheckTargetReady ( void )
 {
-	if ( m_pMachine->IsReady () == TargetMachineClass::READY )
+	switch  ( m_OilerMode )
 	{
-		On ();
+		case ON_TARGET_ACTIVITY:
+			if ( m_pMachine->MachineUnitsDone() )
+			{
+				On ();
+			}
+			break;
+
+		case ON_POWERED_TIME:
+			if ( m_pMachine->MachinePoweredTimeExpired () )
+			{
+				On ();
+			}
+			break;
+
+		default:		// do nothing, shouldn't get here
+			break;
 	}
 }
 

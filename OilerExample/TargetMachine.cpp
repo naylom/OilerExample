@@ -20,7 +20,6 @@
 // Routine to be called if MACHINE_ACTIVE_PIN is signalled - called by interrupt
 void MachineActiveSignal ( void )
 {
-	//static uint32_t	timeStarted = millis ();
 	uint32_t tNow = millis ();
 
 	// see how machine has changed state
@@ -81,6 +80,34 @@ void TargetMachineClass::RestartMonitoring ( void )
 			m_timeActiveStarted = millis ();
 		}
 	}
+}
+
+bool TargetMachineClass::MachineUnitsDone ( void )
+{
+	bool bResult = false;
+	if ( m_ulWorkUnitCount >= m_ulTargetUnits )
+	{
+		bResult = true;
+	}
+	return bResult;
+}
+
+bool TargetMachineClass::MachinePoweredTimeExpired ( void )
+{
+	bool bResult = false;
+	// Check time is up to date
+	if ( m_Active == ACTIVE )
+	{
+		// add time to now and check if passed threshold
+		uint32_t tNow = millis ();
+		IncActiveTime ( tNow );
+		m_timeActiveStarted = tNow;
+	}
+	if ( m_timeActive / 1000 >= m_ulTargetSecs )
+	{
+		bResult = true;
+	}
+	return bResult;
 }
 
 TargetMachineClass::eMachineState TargetMachineClass::IsReady ( void )
