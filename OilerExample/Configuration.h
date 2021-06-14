@@ -13,6 +13,8 @@
 #define OILER_MODE						ELAPSED_TIME_MODE
 #define ELAPSED_TIME_SECS				30			// number of seconds after which pump(s) is(are) started to deliver oil
 #define USING_STEPPER_MOTORS						// comment out if using relays
+#define ALERT_PIN						19			// Pin to signal if not completed oiling in multiple of oiler start target (eg elapsed time / revs / powered on time)
+#define ALERT_THRESHOLD					2			// Example only - set to twice normal target
 
 #ifdef USING_STEPPER_MOTORS
 // Following is used to define a set of four pin relay stepper motors and and an associated sensor that signals when they have output ( e.g. drop of oil)
@@ -28,7 +30,7 @@ struct
 } FourPinMotor [ NUM_MOTORS ] =
 // One motor config
 {
-	{ 4 ,5, 6, 7, 800, OILED_DEVICE_ACTIVE_PIN1, 3 }
+	{ 4 ,5, 6, 7, 800, OILED_DEVICE_ACTIVE_PIN1, 3}
 };
 /* Two motor config example, NB change NUM_MOTORS above to 2									
 {
@@ -52,7 +54,7 @@ struct
 /*
 {
 	{ 4, OILED_DEVICE_ACTIVE_PIN1, 3 },
-	{ 5, OILED_DEVICE_ACTIVE_PIN2, 4 }						// more oil drips on second motor for example
+	{ 5, OILED_DEVICE_ACTIVE_PIN2, 4 }							// more oil drips on second motor for example
 };
 */
 #endif

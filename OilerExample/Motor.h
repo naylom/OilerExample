@@ -21,7 +21,8 @@ public:
 	enum			eState { STOPPED = 1, RUNNING };
 	virtual bool	On ( void );						// Needs to be overriden to implement details of how motor is enabled
 	virtual bool	Off ( void );
-	uint32_t		GetTimeMotorStarted ( void );
+	uint32_t		GetTimeMotorStarted ( void );		// returns millis that it started
+	uint32_t		GetTimeMotorRunning ( void );		// returns seconds it has been running, 0 if stopped
 	uint32_t		GetTimeMotorStopped ( void );
 	eState			GetMotorState ( void );
 	uint32_t		GetSpeed ( void );
