@@ -11,6 +11,10 @@
 //  use this object to detect elapsed time the machine is active (ie ignore idle time) and / or when the TargetMachine has done an amount of work. In our lathe example this is 
 //  tied to the number of revolutions it does.
 //
+//  Changelog
+//	Ver 0.3 14/6	Changed the interrupt associated with motor outputting oil to trigger on a FALLING signal not whenever HIGH
+//					Added code to ignore signals from sensor measuring motor output if not a gap of at least DEBOUNCE_THRESHOLD millseconds
+//					Fixed bug where second motor would not get correct interrupt routine set up
 
 #ifndef _OILER_h
 #define _OILER_h
@@ -24,13 +28,14 @@
 #include "FourPinStepperMotor.h"
 #include "TargetMachine.h"
 
-#define OILER_VERSION 0.2
+#define		OILER_VERSION				0.3
 
 #define		MAX_MOTORS					2					// MAX the oiler can support
-#define		MOTOR_WORK_SIGNAL_MODE		HIGH				// LEVEL of signal when motor output (eg oil seen) is signalled
+#define		MOTOR_WORK_SIGNAL_MODE		FALLING				// Change in signal when motor output (eg oil seen) is signalled
 #define		MOTOR_WORK_SIGNAL_PINMODE	INPUT_PULLUP
 #define		TIME_BETWEEN_OILING			30					// default value  - In seconds
 #define		NUM_ACTION_EVENTS			3					// number of times device being oiled signals action has been taken after which motor(s) is(are) started to deliver oil
+#define		DEBOUNCE_THRESHOLD			150UL				// milliseconds, increase if drip sensor is registering too many drips per single drip
 
 class OilerClass
 {

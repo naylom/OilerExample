@@ -6,16 +6,34 @@
 #include "Oiler.h"
 #include "Timer.h"
 
-
 void Motor1WorkSignal ( void )
 {
-	TheOiler.MotorWork ( 0 );
+	static uint32_t ulLastSignal = 0;
+	if ( ( millis () - ulLastSignal ) > DEBOUNCE_THRESHOLD )
+	{
+		TheOiler.MotorWork ( 0 );
+	}
 }
 
 void Motor2WorkSignal ( void )
 {
-	TheOiler.MotorWork ( 1 );
+	static uint32_t ulLastSignal = 0;
+	if ( millis () - ulLastSignal > DEBOUNCE_THRESHOLD )
+	{
+		TheOiler.MotorWork ( 1 );
+	}
 }
+
+// list of ISRs for each possible motor
+typedef void ( *Callback )( void );
+struct
+{
+	Callback MotorWorkCallback [ MAX_MOTORS ];
+} MotorISRs =
+{
+	Motor1WorkSignal,
+	Motor2WorkSignal
+};
 
 void OilerTmerCallback ( void )
 {
@@ -38,6 +56,7 @@ void OilerTmerCallback ( void )
 		}
 	}
 }
+
 OilerClass::OilerClass ( TargetMachineClass* pMachine )
 {
 	m_pMachine = pMachine;
@@ -88,9 +107,11 @@ bool OilerClass::AddMotor ( uint8_t uiPin1, uint8_t uiPin2, uint8_t uiPin3, uint
 	{
 		// space to add another motor
 		m_Motors.Motor [ m_Motors.uiNumMotors ] = (MotorClass*)new FourPinStepperMotorClass ( uiPin1, uiPin2, uiPin3, uiPin4, ulSpeed );
-		m_Motors.uiWorkPin [ m_Motors.uiNumMotors++ ] = uiWorkPin;
+		m_Motors.uiWorkPin [ m_Motors.uiNumMotors ] = uiWorkPin;
 		pinMode ( uiWorkPin, MOTOR_WORK_SIGNAL_PINMODE );
-		attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), Motor1WorkSignal, MOTOR_WORK_SIGNAL_MODE );
+		attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), MotorISRs.MotorWorkCallback [ m_Motors.uiNumMotors ], MOTOR_WORK_SIGNAL_MODE );
+		//attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), Motor1WorkSignal, MOTOR_WORK_SIGNAL_MODE );
+		m_Motors.uiNumMotors++;
 		bResult = true;
 	}
 	return bResult;
@@ -102,9 +123,11 @@ bool OilerClass::AddMotor ( uint8_t uiPin, uint8_t uiWorkPin )
 	if ( m_Motors.uiNumMotors < MAX_MOTORS && digitalPinToInterrupt ( uiWorkPin ) != NOT_AN_INTERRUPT )
 	{
 		// space to add another motor
-		m_Motors.Motor [ m_Motors.uiNumMotors++ ] = (MotorClass *)new RelayMotorClass  ( uiPin );
+		m_Motors.Motor [ m_Motors.uiNumMotors ] = (MotorClass *)new RelayMotorClass  ( uiPin );
 		pinMode ( uiWorkPin, MOTOR_WORK_SIGNAL_PINMODE );
-		attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), Motor1WorkSignal, MOTOR_WORK_SIGNAL_MODE );
+		attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), MotorISRs.MotorWorkCallback [ m_Motors.uiNumMotors ], MOTOR_WORK_SIGNAL_MODE );
+		//attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), Motor1WorkSignal, MOTOR_WORK_SIGNAL_MODE );
+		m_Motors.uiNumMotors++;
 		bResult = true;
 	}
 	return bResult;
