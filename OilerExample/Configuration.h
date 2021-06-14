@@ -4,7 +4,7 @@
 // 
 //	(c) Mark Naylor June 2021
 //
-#define NUM_MOTORS				1					// number of motors used to deliver oil
+#define NUM_MOTORS						1			// number of motors used to deliver oil
 
 #define OILED_DEVICE_ACTIVE_PIN1		2			// pin which will go high when machine being oiled is active
 #define OILED_DEVICE_ACTIVE_PIN2		3			// pin which will go high when machine being oiled is active
@@ -24,15 +24,16 @@ struct
 	uint8_t		Pin4;
 	uint32_t	Speed;
 	uint8_t		MotorOutputPin;
+	uint8_t		Drips;
 } FourPinMotor [ NUM_MOTORS ] =
 // One motor config
 {
-	{ 4 ,5, 6, 7, 800, OILED_DEVICE_ACTIVE_PIN1 }
+	{ 4 ,5, 6, 7, 800, OILED_DEVICE_ACTIVE_PIN1, 3 }
 };
-/* Two motor config example
+/* Two motor config example, NB change NUM_MOTORS above to 2									
 {
-	{ 4 ,5,  6,  7, 800, OILED_DEVICE_ACTIVE_PIN1 }, 
-	{ 8, 9, 10, 11, 800, OILED_DEVICE_ACTIVE_PIN2 }
+	{ 4 ,5,  6,  7, 800, OILED_DEVICE_ACTIVE_PIN1, 3 }, 
+	{ 8, 9, 10, 11, 800, OILED_DEVICE_ACTIVE_PIN2, 4 }			// more oil drips on second motor for example
 };
 */
 #else
@@ -41,16 +42,17 @@ struct
 {
 	uint8_t		Pin1;
 	uint8_t		MotorOutputPin;
+	uint8_t		Drips;
 } RelayMotor [ NUM_MOTORS ] =
 // One relay motor example
 {
-	{ 4, OILED_DEVICE_ACTIVE_PIN1 }
+	{ 4, OILED_DEVICE_ACTIVE_PIN1, 3 }
 };
-// Two relay motor config example
+// Two relay motor config example, NB change NUM_MOTORS above to 2
 /*
 {
-	{ 4, OILED_DEVICE_ACTIVE_PIN1 },
-	{ 5, OILED_DEVICE_ACTIVE_PIN2 }
+	{ 4, OILED_DEVICE_ACTIVE_PIN1, 3 },
+	{ 5, OILED_DEVICE_ACTIVE_PIN2, 4 }						// more oil drips on second motor for example
 };
 */
 #endif

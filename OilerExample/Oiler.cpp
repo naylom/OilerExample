@@ -74,8 +74,8 @@ bool OilerClass::On ()
 	{
 		for ( uint8_t i = 0; i < m_Motors.uiNumMotors; i++ )
 		{
-			m_Motors.Motor [ i ]->On ();
-			m_Motors.uiWorkCount [ i ] = 0;
+			m_Motors.MotorInfo [ i ].Motor->On ();
+			m_Motors.MotorInfo [ i ].uiWorkCount = 0;
 		}
 		// if we have a machine, start monitoring
 		if ( m_OilerMode != ON_TIME && m_pMachine != NULL )
@@ -94,39 +94,40 @@ void OilerClass::Off ()
 {
 	for ( uint8_t i = 0; i < m_Motors.uiNumMotors; i++ )
 	{
-		m_Motors.Motor [ i ]->Off ();
+		m_Motors.MotorInfo [ i ].Motor->Off ();
 	}
 	m_OilerStatus = OFF;
 	m_timeOilerStopped = millis ();
 }
 
-bool OilerClass::AddMotor ( uint8_t uiPin1, uint8_t uiPin2, uint8_t uiPin3, uint8_t uiPin4, uint32_t ulSpeed, uint8_t uiWorkPin )
+bool OilerClass::AddMotor ( uint8_t uiPin1, uint8_t uiPin2, uint8_t uiPin3, uint8_t uiPin4, uint32_t ulSpeed, uint8_t uiWorkPin, uint8_t uiWorkTarget )
 {
 	bool bResult = false;
 	if ( m_Motors.uiNumMotors < MAX_MOTORS && digitalPinToInterrupt  ( uiWorkPin ) != NOT_AN_INTERRUPT )
 	{
 		// space to add another motor
-		m_Motors.Motor [ m_Motors.uiNumMotors ] = (MotorClass*)new FourPinStepperMotorClass ( uiPin1, uiPin2, uiPin3, uiPin4, ulSpeed );
-		m_Motors.uiWorkPin [ m_Motors.uiNumMotors ] = uiWorkPin;
+		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].Motor = (MotorClass*)new FourPinStepperMotorClass ( uiPin1, uiPin2, uiPin3, uiPin4, ulSpeed );
+		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].uiWorkPin = uiWorkPin;
+		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].uiWorkTarget = uiWorkTarget;
 		pinMode ( uiWorkPin, MOTOR_WORK_SIGNAL_PINMODE );
 		attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), MotorISRs.MotorWorkCallback [ m_Motors.uiNumMotors ], MOTOR_WORK_SIGNAL_MODE );
-		//attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), Motor1WorkSignal, MOTOR_WORK_SIGNAL_MODE );
 		m_Motors.uiNumMotors++;
 		bResult = true;
 	}
 	return bResult;
 }
 
-bool OilerClass::AddMotor ( uint8_t uiPin, uint8_t uiWorkPin )
+bool OilerClass::AddMotor ( uint8_t uiPin, uint8_t uiWorkPin, uint8_t uiWorkTarget )
 {
 	bool bResult = false;
 	if ( m_Motors.uiNumMotors < MAX_MOTORS && digitalPinToInterrupt ( uiWorkPin ) != NOT_AN_INTERRUPT )
 	{
 		// space to add another motor
-		m_Motors.Motor [ m_Motors.uiNumMotors ] = (MotorClass *)new RelayMotorClass  ( uiPin );
+		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].Motor = (MotorClass *)new RelayMotorClass  ( uiPin );
+		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].uiWorkPin = uiWorkPin;
+		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].uiWorkTarget = uiWorkTarget;
 		pinMode ( uiWorkPin, MOTOR_WORK_SIGNAL_PINMODE );
 		attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), MotorISRs.MotorWorkCallback [ m_Motors.uiNumMotors ], MOTOR_WORK_SIGNAL_MODE );
-		//attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), Motor1WorkSignal, MOTOR_WORK_SIGNAL_MODE );
 		m_Motors.uiNumMotors++;
 		bResult = true;
 	}
@@ -141,12 +142,12 @@ void	OilerClass::AddMachine ( TargetMachineClass* pMachine )
 void OilerClass::MotorWork ( uint8_t uiMotorIndex )
 {
 	// One of Oiler motors has completed work
-	m_Motors.uiWorkCount [ uiMotorIndex ]++;
+	m_Motors.MotorInfo[ uiMotorIndex ].uiWorkCount++;
 	// check if it has hit target
-	if ( m_Motors.uiWorkCount [ uiMotorIndex ] >= NUM_ACTION_EVENTS )
+	if ( m_Motors.MotorInfo [ uiMotorIndex ].uiWorkCount >= NUM_MOTOR_WORK_EVENTS )
 	{
 		// hit target, stop motor
-		m_Motors.Motor [ uiMotorIndex ]->Off ();
+		m_Motors.MotorInfo [ uiMotorIndex ].Motor->Off ();
 
 		// have we stopped all motors
 		if ( AllMotorsStopped() )
@@ -206,28 +207,42 @@ uint32_t OilerClass::GetTimeOilerIdle ( void )
 	uint32_t	ulResult = 0UL;
 	
 	// if no oiler motors pumping
-	if ( AllMotorsStopped () || GetStartMode() != NONE )
+	if ( AllMotorsStopped () )
 	{
 		ulResult = ( millis () - m_timeOilerStopped ) / 1000;
 	}
 	return ulResult;
 }
 
-// called ny timer callback to restart oiler if necessary
+// called by timer callback when in ON_TIME mode to restart oiler motors if necessary
 void OilerClass::CheckElapsedTime ()
 {
-	if ( GetTimeOilerIdle () > m_ulOilTime )
+	// check if motor should be restarted
+	if ( m_Motors.uiNumMotors > 0 )
 	{
-		On ();
+		uint32_t tNow = millis ();
+		for ( uint8_t i = 0; i < m_Motors.uiNumMotors; i++ )
+		{
+			// check if motor not running
+			if ( m_Motors.MotorInfo [ i ].Motor->GetMotorState () == MotorClass::STOPPED )
+			{
+				// check elapsed time
+				if ( ( tNow - m_Motors.MotorInfo [ i ].Motor->GetTimeMotorStopped () ) / 1000 > m_ulOilTime )
+				{
+					m_Motors.MotorInfo [ i ].Motor->On ();
+					m_Motors.MotorInfo [ i ].uiWorkCount = 0;
+				}
+			}
+		}
 	}
 }
 
-uint8_t OilerClass::GetMotorWorkCount ( uint8_t uiMotorNum )
+uint16_t OilerClass::GetMotorWorkCount ( uint8_t uiMotorNum )
 {
 	uint8_t uiResult = 0;
 	if ( uiMotorNum < m_Motors.uiNumMotors )
 	{
-		uiResult =  m_Motors.uiWorkCount [ uiMotorNum ];
+		uiResult =  m_Motors.MotorInfo [ uiMotorNum ].uiWorkCount;
 	}
 	return uiResult;
 }
@@ -237,7 +252,7 @@ MotorClass::eState OilerClass::GetMotorState ( uint8_t uiMotorNum )
 	MotorClass::eState eResult = MotorClass::STOPPED;
 	if ( uiMotorNum < m_Motors.uiNumMotors )
 	{
-		eResult = m_Motors.Motor [ uiMotorNum ]->GetMotorState ();
+		eResult = m_Motors.MotorInfo [ uiMotorNum ].Motor->GetMotorState ();
 	}
 	return eResult;
 }
@@ -247,7 +262,7 @@ bool OilerClass::AllMotorsStopped ( void )
 	bool bResult = true;
 	for ( uint8_t i = 0; i < m_Motors.uiNumMotors; i++ )
 	{
-		if ( m_Motors.Motor [ i ]->GetMotorState() == MotorClass::RUNNING )
+		if ( m_Motors.MotorInfo [ i ].Motor->GetMotorState() == MotorClass::RUNNING )
 		{
 			bResult = false;
 			break;
@@ -297,22 +312,39 @@ bool OilerClass::SetStartMode ( eStartMode Mode, uint32_t ulModeTarget )
 	return bResult;
 }
 
+// Set direction of specified motor 
+void OilerClass::SetMotorsForward ( uint8_t uiMotorIndex )
+{
+	for ( uint8_t i = 0; i < m_Motors.uiNumMotors; i++ )
+	{
+		m_Motors.MotorInfo [ i ].Motor->SetDirection ( MotorClass::FORWARD );
+	}
+}
+
+// Set all motors in specified direction
 void OilerClass::SetMotorsForward ( void )
 {
 	for ( uint8_t i = 0; i < m_Motors.uiNumMotors; i++ )
 	{
-		m_Motors.Motor [ i ]->SetDirection ( MotorClass::FORWARD );
+		SetMotorsForward ( i );
 	}
 }
 
+// Set direction of specified motor 
+void OilerClass::SetMotorsBackward ( uint8_t uiMotorIndex )
+{
+
+	m_Motors.MotorInfo [ uiMotorIndex ].Motor->SetDirection ( MotorClass::BACKWARD );
+}
+
+// Set all motors in specified direction
 void OilerClass::SetMotorsBackward ( void )
 {
 	for ( uint8_t i = 0; i < m_Motors.uiNumMotors; i++ )
 	{
-		m_Motors.Motor [ i ]->SetDirection ( MotorClass::BACKWARD );
+		SetMotorsBackward ( i );
 	}
 }
-
 
 OilerClass TheOiler;
 

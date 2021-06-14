@@ -51,9 +51,9 @@ void setup ()
 
 	// Add motors to Oiler - see Configuration.h
 #ifdef USING_STEPPER_MOTORS
-	/* For the purpose of showing how this is done, the next two commented out lines work but the following loop is more elegant
-	TheOiler.AddMotor ( 4, 5, 6, 7, 800, 2 );
-	TheOiler.AddMotor ( 8, 9, 10, 11, 800, 3 );
+	/* For the purpose of showing how this is done, the next two commented out lines work but the following loop is more elegant 
+	TheOiler.AddMotor ( 4, 5, 6, 7, 800, 2, 3 );
+	TheOiler.AddMotor ( 8, 9, 10, 11, 800, 3, 4 );
 	*/
 	for ( uint8_t i = 0; i < NUM_MOTORS; i++ )
 	{
@@ -62,7 +62,9 @@ void setup ()
 								 FourPinMotor [ i ].Pin3, 
 								 FourPinMotor [ i ].Pin4, 
 								 FourPinMotor [ i ].Speed , 
-								 FourPinMotor [ i ].MotorOutputPin ) == false 
+								 FourPinMotor [ i ].MotorOutputPin,
+								 FourPinMotor [ i ].Drips
+							   ) == false 
 		   )
 		{
 			Error ( F ( "Unable to add motor to oiler, stopped" ));
@@ -75,14 +77,14 @@ void setup ()
 #else
 	for ( uint8_t i = 0; i < NUM_MOTORS; i++ )
 	{
-		if ( TheOiler.AddMotor ( RelayMotor [ i ].Pin1, RelayMotor [ i ].MotorOutputPin ) == false )
+		if ( TheOiler.AddMotor ( RelayMotor [ i ].Pin1, RelayMotor [ i ].MotorOutputPin, RelayMotor [ i ].Drips ) == false )
 		{
 			Error ( F ( "Unable to add motor to oiler, stopped" ));
 			while ( 1 );
 		}
 	}
 #endif
-	
+
 	// This next step is optional, the Oiler will work without it. It simply gives a better experience.
 	// TheMachine that uses two pins to signal when the machine to be oiled is powered on and also when it has completed a 
 	// unit of work (e.g. a revolution of a spindle). See TargetMachine.h for configuration of these pins
@@ -140,7 +142,7 @@ void loop ()
 				DisplayOilerStatus ( F ( "Oiler moving backward" ) );
 				break;
 
-			case '5': // TIME_ONLY - basic mode -  oil every n secs regardless
+			case '5': // TIME_ONLY - basic mode -  oil every 30 secs regardless
 				if ( TheOiler.SetStartMode ( OilerClass::ON_TIME, 30 ) )
 				{
 					DisplayOilerStatus ( F ( "Oiler in basic ON_TIME mode" ) );
@@ -151,7 +153,7 @@ void loop ()
 				}
 				break;
 
-			case '6': // POWERED_ON - adv mode - oile every n secs target machine is powered on
+			case '6': // POWERED_ON - adv mode - oil every 30 secs target machine is powered on
 				if ( TheOiler.SetStartMode ( OilerClass::ON_POWERED_TIME, 30 ) )
 				{
 					DisplayOilerStatus ( F ( "Oiler in advanced ON_POWERED_TIME mode" ) );
@@ -162,7 +164,7 @@ void loop ()
 				}
 				break;
 
-			case '7': // WORK_UNITS - adv mode - oil every n units done bt target machine, eg every n spindle revs
+			case '7': // WORK_UNITS - adv mode - oil every 3 units done by target machine, eg every n spindle revs
 				if ( TheOiler.SetStartMode ( OilerClass::ON_TARGET_ACTIVITY, 3 ) )
 				{
 					DisplayOilerStatus ( F ( "Oiler in advanced ON_TARGET_ACTIVITY mode" ) );
@@ -261,13 +263,13 @@ void DisplayStats ( void )
 	static uint8_t						uiLastCount [ NUM_MOTORS ];
 	static MotorClass::eState			uiLastState [ NUM_MOTORS ];
 	static uint32_t						ulLastIdleSecs			= 0UL;
-	static uint32_t						ulLastMachineUnits		= 0;
-	static uint32_t						ulLastMachineIdleSecs	= 0;
+	static uint32_t						ulLastMachineUnits		= 0UL;
+	static uint32_t						ulLastMachineIdleSecs	= 0UL;
 	static OilerClass::eStartMode		OilerMode				= OilerClass::NONE;
 	static OilerClass::eStatus			OilerStatus				= OilerClass::OFF;
 
 	uint32_t ulIdleSecs = TheOiler.GetTimeOilerIdle ();
-	if ( ulIdleSecs != ulLastIdleSecs && TheOiler.AllMotorsStopped() )
+	if ( ulIdleSecs != ulLastIdleSecs )
 	{
 		ulLastIdleSecs = ulIdleSecs;
 		ClearPartofLine ( STATS_ROW, STATS_RESULT_COL, MAX_COLS - STATS_RESULT_COL );

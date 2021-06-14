@@ -18,6 +18,8 @@
 //
 //	Ver 0.4 14/6/21	Machine can now be queried if number of work units (eg revs of lathe spindle) or time machine has power has exceeded its related threshold and is ready to be oiled
 //					This allows Oiler to only start oiling if the relevant metric is met for the Oiler mode
+//
+//	Ver 0.5 14/6/21	Oiler now restarts each motor separately after elapsed time so that if one motor takes longer to complete its work (drip oil) other motors will not be held up.
 
 #ifndef _OILER_h
 #define _OILER_h
@@ -31,13 +33,13 @@
 #include "FourPinStepperMotor.h"
 #include "TargetMachine.h"
 
-#define		OILER_VERSION				0.4
+#define		OILER_VERSION				0.5
 
 #define		MAX_MOTORS					2					// MAX the oiler can support
 #define		MOTOR_WORK_SIGNAL_MODE		FALLING				// Change in signal when motor output (eg oil seen) is signalled
 #define		MOTOR_WORK_SIGNAL_PINMODE	INPUT_PULLUP
 #define		TIME_BETWEEN_OILING			30					// default value  - In seconds
-#define		NUM_ACTION_EVENTS			3					// number of times device being oiled signals action has been taken after which motor(s) is(are) started to deliver oil
+#define		NUM_MOTOR_WORK_EVENTS		3					// number of motor outputs (oil drips) after which motor is stopped and restarts waiting for mode threshold to occur
 #define		DEBOUNCE_THRESHOLD			150UL				// milliseconds, increase if drip sensor is registering too many drips per single drip
 
 class OilerClass
@@ -49,26 +51,27 @@ class OilerClass
 						OilerClass ( TargetMachineClass* pMachine = NULL );
 	bool				On ();
 	void				Off ();
-	void				SetMotorsForward ( void );
-	void				SetMotorsBackward ( void );
-	bool				AddMotor ( uint8_t uiPin1, uint8_t uiPin2, uint8_t uiPin3, uint8_t uiPin4, uint32_t ulSpeed, uint8_t uiWorkPin );		// FourPin Stepper version
-	bool				AddMotor ( uint8_t uiPin, uint8_t uiWorkPin );																			// one pin relay version
-	void				MotorWork ( uint8_t uiMotorIndex );
+	void				SetMotorsForward ( void );					// Set direction of all motors
+	void				SetMotorsForward ( uint8_t uiMotorIndex );	// Set direction of specified motor
+	void				SetMotorsBackward ( void );					// Set direction of all motors
+	void				SetMotorsBackward ( uint8_t uiMotorIndex );	// set direction of specified motor
+	bool				AddMotor ( uint8_t uiPin1, uint8_t uiPin2, uint8_t uiPin3, uint8_t uiPin4, uint32_t ulSpeed, uint8_t uiWorkPin, uint8_t uiWorkTarget = NUM_MOTOR_WORK_EVENTS );		// FourPin Stepper version
+	bool				AddMotor ( uint8_t uiPin, uint8_t uiWorkPin, uint8_t uiWorkTarget = NUM_MOTOR_WORK_EVENTS );																		// one pin relay version
+	void				MotorWork ( uint8_t uiMotorIndex );			// Used internally by interrupt handler to capture signal from a motor sensor when output (oil) is seen
 	bool				SetStartMode ( eStartMode Mode, uint32_t uiModeTarget );
 	eStartMode			GetStartMode ( void );
 	eStatus				GetStatus ( void );
 	void				CheckElapsedTime ( void );					// Checks time running since olier last finished - this is the basic version not using TargetMachine
 	void				CheckTargetReady ( void );					// Checks if target is ready for oil
-	void				AddMachine ( TargetMachineClass* pMachine );
-	uint8_t				GetMotorWorkCount ( uint8_t uiMotorNum );
-	MotorClass::eState	GetMotorState ( uint8_t uiMotorNum );
+	void				AddMachine ( TargetMachineClass* pMachine );// optionally called to inform oiler we have a target machine that can be queried
+	uint16_t			GetMotorWorkCount ( uint8_t uiMotorNum );	// get number of work units (oil drips) seen from specified motor
+	MotorClass::eState	GetMotorState ( uint8_t uiMotorNum );		// get state of specified motor
 	uint32_t			GetTimeOilerIdle ( void );					// returns time in seconds the Oiler has been idle (all motors off)
 	bool				AllMotorsStopped ( void );					// true if no motors active
 
  protected:
 	 eStartMode				m_OilerMode;
 	 eStatus				m_OilerStatus;
-	 uint32_t				m_ModeTarget;
 	 TargetMachineClass*	m_pMachine;
 	 uint32_t				m_timeOilerStopped;
 	 union															// These values are mutually exclsuive so use same storage
@@ -76,12 +79,17 @@ class OilerClass
 		 uint32_t m_ulOilTime;
 		 uint32_t m_ulWorkTarget;
 	 };
+	 typedef struct
+	 {
+		 uint8_t					uiWorkPin;						// Pin that signals when motor has completed a unit of work e.g. a drip of oil
+		 MotorClass*				Motor;							// ptr to type of motor class
+		 uint16_t					uiWorkCount;					// Number of work units (oil drips) seen
+		 uint8_t					uiWorkTarget;					// Target number of work units (oil drips) from motor after which it is stopped
+	 } MOTOR_INFO;
 	 struct															// keep track of each motor used by oiler
 	 {
 		 uint8_t					uiNumMotors;
-		 uint8_t					uiWorkPin [ MAX_MOTORS ];
-		 MotorClass*				Motor [ MAX_MOTORS ];
-		 uint8_t					uiWorkCount [ MAX_MOTORS ];
+		 MOTOR_INFO					MotorInfo [ MAX_MOTORS ];
 	 }	m_Motors;
 };
 
