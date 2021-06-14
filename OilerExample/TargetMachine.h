@@ -40,7 +40,10 @@ public:
 	enum eMachineState	{ READY, NOT_READY, NO_FEATURES };		// Ready to be oiled or can't tell
 	enum eActiveState	{ IDLE, ACTIVE };
 					TargetMachineClass ( void );
-	void			RestartMonitoring ( void );					// restart monitoring Machine activity and work units completed
+	void			RestartMonitoring ( void );
+	bool			MachineUnitsDone ( void );					// number of machine work units complete and ready to be oiled
+	bool			MachinePoweredTimeExpired ( void );			// machine has been turned on for > required time and now ready to be oiled
+
 	eMachineState	IsReady ( void );
 	uint32_t		GetActiveTime ( void );						// Active time in secs since oiler stopped
 	uint32_t		GetWorkUnits ( void );						// number of work units since oiler stopped
@@ -49,6 +52,7 @@ public:
 	void			IncWorkUnit ( uint32_t ulIncAmoount );
 	bool			SetActiveTimeTarget ( uint32_t ulTargetSecs );
 	bool			SetWorkTarget ( uint32_t ulTargetUnits );
+
 protected:
 	eMachineState	m_State;
 	eActiveState	m_Active;

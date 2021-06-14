@@ -12,9 +12,12 @@
 //  tied to the number of revolutions it does.
 //
 //  Changelog
-//	Ver 0.3 14/6	Changed the interrupt associated with motor outputting oil to trigger on a FALLING signal not whenever HIGH
+//	Ver 0.3 14/6/21	Changed the interrupt associated with motor outputting oil to trigger on a FALLING signal not whenever HIGH
 //					Added code to ignore signals from sensor measuring motor output if not a gap of at least DEBOUNCE_THRESHOLD millseconds
 //					Fixed bug where second motor would not get correct interrupt routine set up
+//
+//	Ver 0.4 14/6/21	Machine can now be queried if number of work units (eg revs of lathe spindle) or time machine has power has exceeded its related threshold and is ready to be oiled
+//					This allows Oiler to only start oiling if the relevant metric is met for the Oiler mode
 
 #ifndef _OILER_h
 #define _OILER_h
@@ -28,7 +31,7 @@
 #include "FourPinStepperMotor.h"
 #include "TargetMachine.h"
 
-#define		OILER_VERSION				0.3
+#define		OILER_VERSION				0.4
 
 #define		MAX_MOTORS					2					// MAX the oiler can support
 #define		MOTOR_WORK_SIGNAL_MODE		FALLING				// Change in signal when motor output (eg oil seen) is signalled
