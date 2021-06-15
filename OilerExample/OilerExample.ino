@@ -150,7 +150,7 @@ void loop ()
 				break;
 
 			case '5': // TIME_ONLY - basic mode -  oil every 30 secs regardless
-				if ( TheOiler.SetStartMode ( OilerClass::ON_TIME, 30 ) )
+				if ( TheOiler.SetStartMode ( OilerClass::ON_TIME, ELAPSED_TIME_SECS ) )
 				{
 					DisplayOilerStatus ( F ( "Oiler in basic ON_TIME mode" ) );
 				}
@@ -161,7 +161,7 @@ void loop ()
 				break;
 
 			case '6': // POWERED_ON - adv mode - oil every 30 secs target machine is powered on
-				if ( TheOiler.SetStartMode ( OilerClass::ON_POWERED_TIME, 30 ) )
+				if ( TheOiler.SetStartMode ( OilerClass::ON_POWERED_TIME, ELAPSED_TIME_SECS ) )
 				{
 					DisplayOilerStatus ( F ( "Oiler in advanced ON_POWERED_TIME mode" ) );
 				}

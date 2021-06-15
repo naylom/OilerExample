@@ -9,8 +9,6 @@
 #define OILED_DEVICE_ACTIVE_PIN1		2			// pin which will go high when machine being oiled is active
 #define OILED_DEVICE_ACTIVE_PIN2		3			// pin which will go high when machine being oiled is active
 #define ELAPSED_TIME_MODE				1			// Oil after elapsed time
-#define ACTION_MODE						2			// OIl after action occurs
-#define OILER_MODE						ELAPSED_TIME_MODE
 #define ELAPSED_TIME_SECS				30			// number of seconds after which pump(s) is(are) started to deliver oil
 #define USING_STEPPER_MOTORS						// comment out if using relays
 #define ALERT_PIN						19			// Pin to signal if not completed oiling in multiple of oiler start target (eg elapsed time / revs / powered on time)
