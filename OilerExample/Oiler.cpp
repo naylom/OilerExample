@@ -9,8 +9,11 @@
 void Motor1WorkSignal ( void )
 {
 	static uint32_t ulLastSignal = 0;
-	if ( ( millis () - ulLastSignal ) > DEBOUNCE_THRESHOLD )
+	uint32_t tNow = millis ();
+
+	if ( ( tNow - ulLastSignal ) > DEBOUNCE_THRESHOLD )
 	{
+		ulLastSignal = tNow;
 		TheOiler.MotorWork ( 0 );
 	}
 }
@@ -18,8 +21,11 @@ void Motor1WorkSignal ( void )
 void Motor2WorkSignal ( void )
 {
 	static uint32_t ulLastSignal = 0;
-	if ( millis () - ulLastSignal > DEBOUNCE_THRESHOLD )
+	uint32_t tNow = millis ();
+
+	if ( ( tNow - ulLastSignal ) > DEBOUNCE_THRESHOLD )
 	{
+		ulLastSignal = tNow;
 		TheOiler.MotorWork ( 1 );
 	}
 }
