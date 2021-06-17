@@ -39,7 +39,7 @@
 
 #define		OILER_VERSION				0.6
 
-#define		MAX_MOTORS					2					// MAX the oiler can support
+#define		MAX_MOTORS					6					// MAX the oiler can support
 #define		MOTOR_WORK_SIGNAL_MODE		FALLING				// Change in signal when motor output (eg oil seen) is signalled
 #define		MOTOR_WORK_SIGNAL_PINMODE	INPUT_PULLUP
 #define		ALERT_PIN_ERROR_STATE		HIGH				// LOW or HIGH as required
