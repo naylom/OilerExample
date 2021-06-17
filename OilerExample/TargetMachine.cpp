@@ -13,58 +13,98 @@
 //
 // The class keeps track of active time and number of units of work completed. These are optional inputs for the Oiler class to refine when it delivers oil.
 //
-
+#include "PCIHandler.h"
 #include "TargetMachine.h"
-#define IsInThisPCIR( digitalPin, Port ) ( digitalPinToPort ( digitalPin ) -  2 == Port ? true: false)
 
-// Routine to be called if MACHINE_ACTIVE_PIN is signalled - called by interrupt
+
+// #define IsInThisPCIR( digitalPin, Port ) ( digitalPinToPort ( digitalPin ) -  2 == Port ? true: false)
+
+// Routine to be called if the target machine active pin is signalled - called by interrupt
 void MachineActiveSignal ( void )
 {
-	uint32_t tNow = millis ();
-
-	// see how machine has changed state
-	if ( digitalRead ( MACHINE_ACTIVE_PIN ) == MACHINE_ACTIVE_STATE )
-	{
-		// machine gone active so remember when this started
-		TheMachine.GoneActive ( tNow );
-	}
-	else
-	{
-		// machine gone idle so calc time was active and save it
-		TheMachine.IncActiveTime ( tNow );
-	}
+	TheMachine.CheckActivity ();
 }
 
 // Routine to be called if MACHINE_WORK_PIN is signalled - called by interrupt
 void MachineWorkUnitSignal ( void )
 {
-	if ( digitalRead ( MACHINE_WORK_PIN ) == MACHINE_WORK_PIN_STATE )
+	// if ( digitalRead ( MACHINE_WORK_PIN ) == MACHINE_WORK_PIN_STATE )
 	{
 		TheMachine.IncWorkUnit ( 1 );
 	}
 }
-
+extern uint8_t bPCICount;
 // Class routines
 TargetMachineClass::TargetMachineClass ( void )
 {
+	m_uiWorkPin		= NOT_A_PIN;
+	m_uiActivitePin = NOT_A_PIN;
+	m_State			= NOT_READY;
+	m_Active		= IDLE;
+/*
 	m_ulTargetSecs = MACHINE_ACTIVE_TIME_TARGET;		// set default
 	m_ulTargetUnits = WORK_UNITS_TARGET;
 	RestartMonitoring ();
-	
+
 	if ( MACHINE_ACTIVE_PIN != NOT_A_PIN )
 	{
-		pinMode ( MACHINE_ACTIVE_PIN, MACHINE_ACTIVE_PIN_MODE );
-		EnablePCI ( MACHINE_ACTIVE_PIN, MachineActiveSignal );
+		if ( PCIHandler.AddPin ( MACHINE_ACTIVE_PIN, MachineActiveSignal, MACHINE_ACTIVE_PIN_SIGNAL, MACHINE_ACTIVE_PIN_MODE ) == false )
+		{
+			bPCICount++;
+		}
+		//pinMode ( MACHINE_ACTIVE_PIN, MACHINE_ACTIVE_PIN_MODE );
+		//EnablePCI ( MACHINE_ACTIVE_PIN, MachineActiveSignal );
 	}
 	if ( MACHINE_WORK_PIN != NOT_A_PIN )
 	{
-		pinMode ( MACHINE_WORK_PIN, MACHINE_WORK_PIN_MODE );
-		EnablePCI ( MACHINE_WORK_PIN, MachineWorkUnitSignal );
+		if ( PCIHandler.AddPin ( MACHINE_WORK_PIN, MachineWorkUnitSignal, MACHINE_WORK_PIN_SIGNAL, MACHINE_WORK_PIN_MODE ) == false )
+		{
+			bPCICount++;
+		}
+		//pinMode ( MACHINE_WORK_PIN, MACHINE_WORK_PIN_MODE );
+		//EnablePCI ( MACHINE_WORK_PIN, MachineWorkUnitSignal );
 	}
-	if ( MACHINE_ACTIVE_PIN != NOT_A_PIN && MACHINE_WORK_PIN != NOT_A_PIN )
+	if ( MACHINE_ACTIVE_PIN == NOT_A_PIN && MACHINE_WORK_PIN == NOT_A_PIN )
 	{
 		m_State = NO_FEATURES;
 	}
+*/
+}
+
+bool TargetMachineClass::AddFeatures  ( uint8_t uiActivePin, uint8_t uiWorkPin, uint8_t uiActiveUnitTarget,  uint8_t uiWorkUnitTarget )
+{
+	bool bResult = true;
+
+	m_ulTargetSecs	= uiActiveUnitTarget;		
+	m_ulTargetUnits = uiWorkUnitTarget;
+	m_uiActivitePin = uiActivePin;
+	m_uiWorkPin		= uiWorkPin;
+
+	if ( uiActivePin == NOT_A_PIN && uiWorkPin == NOT_A_PIN )
+	{
+		m_State = NO_FEATURES;
+	}
+	RestartMonitoring ();
+
+	if ( uiActivePin != NOT_A_PIN )
+	{
+		if ( PCIHandler.AddPin ( uiActivePin, MachineActiveSignal, MACHINE_ACTIVE_PIN_SIGNAL, MACHINE_ACTIVE_PIN_MODE ) == false )
+		{
+			bResult = false;
+		}
+		//pinMode ( MACHINE_ACTIVE_PIN, MACHINE_ACTIVE_PIN_MODE );
+		//EnablePCI ( MACHINE_ACTIVE_PIN, MachineActiveSignal );
+	}
+	if ( uiWorkPin != NOT_A_PIN )
+	{
+		if ( PCIHandler.AddPin ( uiWorkPin, MachineWorkUnitSignal, MACHINE_WORK_PIN_SIGNAL, MACHINE_WORK_PIN_MODE ) == false )
+		{
+			bResult = false;
+		}
+		//pinMode ( MACHINE_WORK_PIN, MACHINE_WORK_PIN_MODE );
+		//EnablePCI ( MACHINE_WORK_PIN, MachineWorkUnitSignal );
+	}
+	return bResult;
 }
 
 void TargetMachineClass::RestartMonitoring ( void )
@@ -74,11 +114,26 @@ void TargetMachineClass::RestartMonitoring ( void )
 	if ( m_State != NO_FEATURES )
 	{
 		m_State = NOT_READY;
-		m_Active = MACHINE_ACTIVE_PIN == NOT_A_PIN ? IDLE : digitalRead ( MACHINE_ACTIVE_PIN ) == MACHINE_ACTIVE_STATE ? ACTIVE : IDLE;
+		m_Active = m_uiActivitePin == NOT_A_PIN ? IDLE : digitalRead ( m_uiActivitePin ) == MACHINE_ACTIVE_STATE ? ACTIVE : IDLE;
 		if ( m_Active == ACTIVE )
 		{
 			m_timeActiveStarted = millis ();
 		}
+	}
+}
+
+void TargetMachineClass::CheckActivity  ( void )
+{
+	// see how machine has changed state
+	if ( digitalRead ( m_uiActivitePin ) == MACHINE_ACTIVE_STATE )
+	{
+		// machine gone active so remember when this started
+		TheMachine.GoneActive ( millis() );
+	}
+	else
+	{
+		// machine gone idle so calc time was active and save it
+		TheMachine.IncActiveTime ( millis() );
 	}
 }
 
@@ -141,7 +196,7 @@ void TargetMachineClass::IncActiveTime ( uint32_t tNow )
 	{
 		m_State = READY;
 	}
-	m_Active = digitalRead ( MACHINE_ACTIVE_PIN ) == MACHINE_ACTIVE_STATE ? ACTIVE : IDLE;
+	m_Active = digitalRead ( m_uiActivitePin ) == MACHINE_ACTIVE_STATE ? ACTIVE : IDLE;
 }
 
 void TargetMachineClass::GoneActive ( uint32_t tNow )
@@ -162,7 +217,7 @@ void TargetMachineClass::IncWorkUnit ( uint32_t ulIncAmoount )
 bool TargetMachineClass::SetActiveTimeTarget ( uint32_t ulTargetSecs )
 {
 	bool bResult = false;
-	if ( MACHINE_ACTIVE_PIN != NOT_A_PIN )
+	if ( m_uiActivitePin != NOT_A_PIN )
 	{
 		m_ulTargetSecs = ulTargetSecs;
 		bResult = true;
@@ -173,7 +228,7 @@ bool TargetMachineClass::SetActiveTimeTarget ( uint32_t ulTargetSecs )
 bool TargetMachineClass::SetWorkTarget ( uint32_t ulTargetUnits )
 {
 	bool bResult = false;
-	if ( MACHINE_WORK_PIN != NOT_A_PIN )
+	if ( m_uiWorkPin != NOT_A_PIN )
 	{
 		m_ulTargetUnits = ulTargetUnits;
 		bResult = true;
@@ -181,11 +236,12 @@ bool TargetMachineClass::SetWorkTarget ( uint32_t ulTargetUnits )
 	return bResult;
 }
 
+/*
 void TargetMachineClass::EnablePCI ( uint8_t uiPin, InterruptCallback Fn )
 {
 	// enable PCI interrupts and set pin
 	*digitalPinToPCMSK ( uiPin ) |= ( 1 << digitalPinToPCMSKbit ( uiPin ) );
-	 *digitalPinToPCICR ( uiPin ) |= ( 1 << digitalPinToPCICRbit ( uiPin ) );
+	*digitalPinToPCICR ( uiPin ) |= ( 1 << digitalPinToPCICRbit ( uiPin ) );
 }
 
 
@@ -197,7 +253,7 @@ void PCICheckPins ( uint8_t uiPortWithInterrupt )
 
 	uint8_t uiCurrentPCIReg = *portInputRegister ( uiPortWithInterrupt );	// Get prior state of pins on this port
 	// check if MACHINE_ACTIVE_PIN is on this port
-	uint8_t uiPinPort = digitalPinToPort ( ( MACHINE_ACTIVE_PIN ) );  // digitalPinToPort returns 2,3 or 4
+	uint8_t uiPinPort = digitalPinToPort ( MACHINE_ACTIVE_PIN );  // digitalPinToPort returns 2,3 or 4
 	uint8_t uiChangedPins;
 
 	// Check if MACHINE_ACTIVE_PIN is handled by this ISR
@@ -237,6 +293,6 @@ ISR ( PCINT2_vect )
 {
 	PCICheckPins ( 4 );
 }
-
+*/
 TargetMachineClass TheMachine;				// Create instance
 

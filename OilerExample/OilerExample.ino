@@ -39,9 +39,15 @@ the baud rate  used in the sketch (currently 19200) and off you go. Note that if
 
 */
 
+#include "PCIHandler.h"
 #include "RelayMotor.h"
 #include "Configuration.h"
 #include "Oiler.h"
+
+int8_t uiDebugPort;
+int8_t uiDebugMask;
+int8_t uiDebugPin;
+uint8_t bPCICount = 0;
 
 void setup ()
 {
@@ -91,7 +97,13 @@ void setup ()
 	// as well as the number of units of work and elapsed time of machine being powered on after which it is ready to be oiled.
 	// Note that its not necessary to have both configured if the feature is not available
 	
-	// Since we have one, we optionally tell TheOiler it exists as follows:
+	// Since we have one, we configure its pins and targets and then add to TheOiler as follows:
+	if ( TheMachine.AddFeatures ( MACHINE_ACTIVE_PIN, MACHINE_WORK_PIN, MACHINE_ACTIVE_TIME_TARGET, MACHINE_WORK_UNITS_TARGET ) == false )
+	{
+		Error ( F ( "Unable to configure TargetMachine" ) );
+		while ( 1 );
+	}
+
 	TheOiler.AddMachine ( &TheMachine );
 
 	// Demonstrate how to turn on functionalty that will generate a signal if oiling takes too long
@@ -180,6 +192,13 @@ void loop ()
 				{
 					Error ( F ( "Unable to set ON_TARGET_ACTIVITY mode" ) );
 				}
+				break;
+
+			case '9':
+				ClearScreen ();
+				AT ( 1, 1, "" );
+				PCIHandler.Dump ();
+				while ( 1 );
 				break;
 
 			default:
@@ -277,6 +296,15 @@ void DisplayStats ( void )
 	static uint32_t						ulLastMachineIdleSecs	= 0UL;
 	static OilerClass::eStartMode		OilerMode				= OilerClass::NONE;
 	static OilerClass::eStatus			OilerStatus				= OilerClass::OFF;
+
+	if ( uiDebugPort != 0 )
+	{
+		ClearPartofLine ( 23, 1, 40 );
+		String sDebug = "Port " + String ( uiDebugPort ) + " Mask " + String ( uiDebugMask ) + " Pin " + String ( uiDebugPin );
+		AT ( 23, 1, sDebug );
+		uiDebugPort = 0;
+		uiDebugPin = 99;
+	}
 
 	uint32_t ulIdleSecs = TheOiler.GetTimeOilerIdle ();
 	if ( ulIdleSecs != ulLastIdleSecs )

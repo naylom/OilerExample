@@ -5,6 +5,7 @@
 
 #include "Oiler.h"
 #include "Timer.h"
+#include "PCIHandler.h"
 
 void Motor1WorkSignal ( void )
 {
@@ -65,13 +66,13 @@ void OilerTmerCallback ( void )
 
 OilerClass::OilerClass ( TargetMachineClass* pMachine )
 {
-	m_pMachine = pMachine;
-	m_OilerMode = ON_TIME;
-	m_OilerStatus = OFF;
-	m_ulOilTime = TIME_BETWEEN_OILING;
-	m_Motors.uiNumMotors = 0;
-	m_uiAlertPin = NOT_A_PIN;
-	m_ulAlertMultiple = 0UL;
+	m_pMachine				= pMachine;
+	m_OilerMode				= ON_TIME;
+	m_OilerStatus			= OFF;
+	m_ulOilTime				= TIME_BETWEEN_OILING;
+	m_Motors.uiNumMotors	= 0;
+	m_uiAlertPin			= NOT_A_PIN;
+	m_ulAlertMultiple		= 0UL;
 }
 
 bool OilerClass::On ()
@@ -111,15 +112,18 @@ void OilerClass::Off ()
 bool OilerClass::AddMotor ( uint8_t uiPin1, uint8_t uiPin2, uint8_t uiPin3, uint8_t uiPin4, uint32_t ulSpeed, uint8_t uiWorkPin, uint8_t uiWorkTarget )
 {
 	bool bResult = false;
-	if ( m_Motors.uiNumMotors < MAX_MOTORS && digitalPinToInterrupt  ( uiWorkPin ) != NOT_AN_INTERRUPT )
+	if ( m_Motors.uiNumMotors < MAX_MOTORS /* && digitalPinToInterrupt (uiWorkPin) != NOT_AN_INTERRUPT */ )
 	{
 		// space to add another motor
 		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].Motor = (MotorClass*)new FourPinStepperMotorClass ( uiPin1, uiPin2, uiPin3, uiPin4, ulSpeed );
+		SetupMotorPins ( uiWorkPin, uiWorkTarget );
+/*
 		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].uiWorkPin = uiWorkPin;
 		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].uiWorkTarget = uiWorkTarget;
 		pinMode ( uiWorkPin, MOTOR_WORK_SIGNAL_PINMODE );
 		attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), MotorISRs.MotorWorkCallback [ m_Motors.uiNumMotors ], MOTOR_WORK_SIGNAL_MODE );
 		m_Motors.uiNumMotors++;
+*/
 		bResult = true;
 	}
 	return bResult;
@@ -128,18 +132,31 @@ bool OilerClass::AddMotor ( uint8_t uiPin1, uint8_t uiPin2, uint8_t uiPin3, uint
 bool OilerClass::AddMotor ( uint8_t uiPin, uint8_t uiWorkPin, uint8_t uiWorkTarget )
 {
 	bool bResult = false;
-	if ( m_Motors.uiNumMotors < MAX_MOTORS && digitalPinToInterrupt ( uiWorkPin ) != NOT_AN_INTERRUPT )
+	if ( m_Motors.uiNumMotors < MAX_MOTORS /* && digitalPinToInterrupt (uiWorkPin) != NOT_AN_INTERRUPT */ )
 	{
 		// space to add another motor
 		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].Motor = (MotorClass *)new RelayMotorClass  ( uiPin );
+		SetupMotorPins ( uiWorkPin, uiWorkTarget );
+/*
 		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].uiWorkPin = uiWorkPin;
 		m_Motors.MotorInfo [ m_Motors.uiNumMotors ].uiWorkTarget = uiWorkTarget;
 		pinMode ( uiWorkPin, MOTOR_WORK_SIGNAL_PINMODE );
 		attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), MotorISRs.MotorWorkCallback [ m_Motors.uiNumMotors ], MOTOR_WORK_SIGNAL_MODE );
 		m_Motors.uiNumMotors++;
+*/
 		bResult = true;
 	}
 	return bResult;
+}
+
+void OilerClass::SetupMotorPins ( uint8_t uiWorkPin, uint8_t uiWorkTarget )
+{
+	m_Motors.MotorInfo [ m_Motors.uiNumMotors ].uiWorkPin = uiWorkPin;
+	m_Motors.MotorInfo [ m_Motors.uiNumMotors ].uiWorkTarget = uiWorkTarget;
+	//pinMode ( uiWorkPin, MOTOR_WORK_SIGNAL_PINMODE );
+	//attachInterrupt ( digitalPinToInterrupt ( uiWorkPin ), MotorISRs.MotorWorkCallback [ m_Motors.uiNumMotors ], MOTOR_WORK_SIGNAL_MODE );
+	PCIHandler.AddPin ( uiWorkPin, MotorISRs.MotorWorkCallback [ m_Motors.uiNumMotors ], MOTOR_WORK_SIGNAL_MODE, MOTOR_WORK_SIGNAL_PINMODE );
+	m_Motors.uiNumMotors++;
 }
 
 void	OilerClass::AddMachine ( TargetMachineClass* pMachine )
