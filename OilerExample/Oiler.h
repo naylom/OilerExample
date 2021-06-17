@@ -3,7 +3,7 @@
 // 
 // (c) Mark Naylor June 2021
 //
-//	This class is encapsulates the main functionality of thia project
+//	This class is encapsulates the main functionality of this project
 //	The oiler consists of one or more motors and for each motor it has an associated input signal that tells when the motor has completed a unit of work. 
 //  In this case a unit of work is a drop of oil.
 // 
@@ -32,6 +32,7 @@
 #else
 	#include "WProgram.h"
 #endif
+#include "PCIHandler.h"
 #include "RelayMotor.h"
 #include "FourPinStepperMotor.h"
 #include "TargetMachine.h"
@@ -81,6 +82,7 @@ class OilerClass
 
 	 void				CheckError ( uint32_t Actual, uint32_t Target );
 	 void				ClearError ( void );
+	 void				SetupMotorPins ( uint8_t uiWorkPin, uint8_t uiWorkTarget );
 
 	 eStartMode				m_OilerMode;
 	 eStatus				m_OilerStatus;

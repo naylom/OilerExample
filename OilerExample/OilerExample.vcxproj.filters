@@ -45,6 +45,9 @@
     <ClInclude Include="RelayMotor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PCIHandler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Motor.cpp">
@@ -63,6 +66,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="RelayMotor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PCIHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
